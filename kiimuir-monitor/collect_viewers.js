@@ -5,7 +5,7 @@
 // 필요한 환경변수:
 //   GOOGLE_SERVICE_ACCOUNT_JSON  -> 서비스계정 키 파일 내용 전체(JSON 텍스트)
 //   KIIMUIR_SPREADSHEET_ID       -> 이 모니터링 전용 새 스프레드시트 ID
-//   KIIMUIR_SHEET_GID            -> 기록할 탭의 gid (시트 URL의 gid=숫자). 예: 2056737982
+//   KIIMUIR_SHEET_GID            -> (선택) 기록할 탭의 gid. 없으면 아래 설정의 SHEET_GID 기본값 사용
 //   KIIMUIR_SHEET_NAME           -> (대안) 탭 이름. GID가 있으면 GID 우선
 //   SLACK_WEBHOOK_URL            -> (선택) 슬랙 알림용
 
@@ -15,7 +15,8 @@ const { google } = require('googleapis');
 // ===== 설정 =====
 const LISTING_URL = 'https://www.musinsa.com/content/1535169529421128174?gf=A&brandIds=kiimuir&gender=A&contentIndex=0';
 const SPREADSHEET_ID = process.env.KIIMUIR_SPREADSHEET_ID;
-const VIEWER_THRESHOLD = 50;      // 보는 인원수 조정!! 여기서!!
+const SHEET_GID = process.env.KIIMUIR_SHEET_GID || '2056737982'; // 기록할 탭(MU3)의 gid. 시트 URL의 gid=숫자
+const VIEWER_THRESHOLD = 50;
 const MAX_MORE_CLICKS = 30;     // 더보기 클릭 최대 횟수 (안전장치)
 const BUTTON_RETRY = 6;         // 버튼이 안 보일 때 재시도 횟수 (클릭 후 리렌더링 대기용)
 // ================
@@ -236,7 +237,7 @@ async function checkViewer(page, code) {
 //   KIIMUIR_SHEET_NAME -> 탭 이름
 // 둘 다 없으면 엉뚱한 탭에 쓰지 않도록 에러로 멈춤.
 async function resolveSheetName(sheets) {
-  const gid = process.env.KIIMUIR_SHEET_GID;
+  const gid = SHEET_GID;
   const name = process.env.KIIMUIR_SHEET_NAME;
 
   const meta = await sheets.spreadsheets.get({
