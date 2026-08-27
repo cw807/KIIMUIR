@@ -5,7 +5,8 @@
 // 필요한 환경변수:
 //   GOOGLE_SERVICE_ACCOUNT_JSON  -> 서비스계정 키 파일 내용 전체(JSON 텍스트)
 //   KIIMUIR_SPREADSHEET_ID       -> 이 모니터링 전용 새 스프레드시트 ID
-//   KIIMUIR_SHEET_NAME           -> (선택) 탭 이름. 없으면 첫 번째 탭을 자동으로 사용
+//   KIIMUIR_SHEET_GID            -> 기록할 탭의 gid (시트 URL의 gid=숫자). 예: 2056737982
+//   KIIMUIR_SHEET_NAME           -> (대안) 탭 이름. GID가 있으면 GID 우선
 //   SLACK_WEBHOOK_URL            -> (선택) 슬랙 알림용
 
 const { chromium } = require('playwright');
@@ -14,7 +15,7 @@ const { google } = require('googleapis');
 // ===== 설정 =====
 const LISTING_URL = 'https://www.musinsa.com/content/1535169529421128174?gf=A&brandIds=kiimuir&gender=A&contentIndex=0';
 const SPREADSHEET_ID = process.env.KIIMUIR_SPREADSHEET_ID;
-const VIEWER_THRESHOLD = 50;
+const VIEWER_THRESHOLD = 50;      // 보는 인원수 조정!! 여기서!!
 const MAX_MORE_CLICKS = 30;     // 더보기 클릭 최대 횟수 (안전장치)
 const BUTTON_RETRY = 6;         // 버튼이 안 보일 때 재시도 횟수 (클릭 후 리렌더링 대기용)
 // ================
@@ -230,18 +231,31 @@ async function checkViewer(page, code) {
 }
 
 // 3. 구글시트에 결과 쓰기 (서비스계정 키를 환경변수에서 직접 읽음)
-// 탭 이름은 KIIMUIR_SHEET_NAME 환경변수가 있으면 그걸 쓰고, 없으면 첫 번째 탭 이름을 API로 읽어옴.
-// (기존 에러 "Unable to parse range: 시트1!A:E" = 실제 탭 이름이 '시트1'이 아니어서 발생)
+// 기록할 탭은 둘 중 하나로 지정:
+//   KIIMUIR_SHEET_GID  -> 시트 URL의 gid=숫자 (예: 2056737982)  ← 권장
+//   KIIMUIR_SHEET_NAME -> 탭 이름
+// 둘 다 없으면 엉뚱한 탭에 쓰지 않도록 에러로 멈춤.
 async function resolveSheetName(sheets) {
-  if (process.env.KIIMUIR_SHEET_NAME) return process.env.KIIMUIR_SHEET_NAME;
+  const gid = process.env.KIIMUIR_SHEET_GID;
+  const name = process.env.KIIMUIR_SHEET_NAME;
+
   const meta = await sheets.spreadsheets.get({
     spreadsheetId: SPREADSHEET_ID,
-    fields: 'sheets.properties.title',
+    fields: 'sheets.properties(sheetId,title)',
   });
-  const titles = (meta.data.sheets || []).map((s) => s.properties.title);
-  console.log(`   -> 스프레드시트 탭 목록: ${JSON.stringify(titles)}`);
-  if (titles.length === 0) throw new Error('스프레드시트에 탭이 없습니다.');
-  return titles[0];
+  const tabs = (meta.data.sheets || []).map((s) => s.properties);
+  console.log(`   -> 스프레드시트 탭 목록: ${JSON.stringify(tabs.map((t) => `${t.title}(gid=${t.sheetId})`))}`);
+
+  if (gid) {
+    const tab = tabs.find((t) => String(t.sheetId) === String(gid));
+    if (!tab) throw new Error(`gid=${gid}인 탭이 없습니다. 위 탭 목록의 gid를 확인하세요.`);
+    return tab.title;
+  }
+  if (name) {
+    if (!tabs.some((t) => t.title === name)) throw new Error(`탭 '${name}'이(가) 없습니다. 위 탭 목록을 확인하세요.`);
+    return name;
+  }
+  throw new Error('KIIMUIR_SHEET_GID 또는 KIIMUIR_SHEET_NAME 환경변수가 필요합니다. (시트 URL의 gid=숫자 를 KIIMUIR_SHEET_GID로 넣으세요)');
 }
 
 async function writeToSheet(rows) {
