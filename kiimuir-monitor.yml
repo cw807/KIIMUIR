@@ -1,11 +1,8 @@
 name: Kiimuir 브랜드 상품 모니터링
 
 on:
-  # ✅ 1시간 주기 실행 (매 시간 정각)
   schedule:
-    - cron: '0 * * * *'  # UTC 기준 (KST는 -9시간)
-
-  # 수동 실행 옵션 (테스트용)
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -22,31 +19,19 @@ jobs:
           node-version: '18'
 
       - name: 의존성 설치
-        run: |
-          npm install playwright googleapis
-        working-directory: ./kiimuir-monitor
+        run: npm install playwright googleapis
 
       - name: Playwright 브라우저 설치
-        run: |
-          npx playwright install chromium
-        working-directory: ./kiimuir-monitor
+        run: npx playwright install chromium
 
       - name: 상품 모니터링 실행
         env:
-          # GitHub Secrets에서 불러오기
           KIIMUIR_SPREADSHEET_ID: ${{ secrets.KIIMUIR_SPREADSHEET_ID }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           KIIMUIR_SHEET_GID: ${{ secrets.KIIMUIR_SHEET_GID }}
-        run: |
-          echo "⏰ 모니터링 시작: $(date '+%Y-%m-%d %H:%M:%S')"
-          node collect_viewers_optimized.js
-          echo "✅ 모니터링 완료: $(date '+%Y-%m-%d %H:%M:%S')"
-        working-directory: ./kiimuir-monitor
-        continue-on-error: true
+        run: node collect_viewers.js
 
       - name: 실행 완료 알림
         if: always()
-        run: |
-          echo "모니터링 작업 완료"
-          echo "상태: ${{ job.status }}"
+        run: echo "모니터링 작업 완료"
