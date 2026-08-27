@@ -5,6 +5,8 @@
 // 필요한 환경변수:
 //   GOOGLE_SERVICE_ACCOUNT_JSON  -> 서비스계정 키 파일 내용 전체(JSON 텍스트)
 //   KIIMUIR_SPREADSHEET_ID       -> 이 모니터링 전용 새 스프레드시트 ID
+//   KIIMUIR_SHEET_NAME           -> (선택) 탭 이름. 없으면 첫 번째 탭을 자동으로 사용
+//   SLACK_WEBHOOK_URL            -> (선택) 슬랙 알림용
 
 const { chromium } = require('playwright');
 const { google } = require('googleapis');
@@ -12,8 +14,9 @@ const { google } = require('googleapis');
 // ===== 설정 =====
 const LISTING_URL = 'https://www.musinsa.com/content/1535169529421128174?gf=A&brandIds=kiimuir&gender=A&contentIndex=0';
 const SPREADSHEET_ID = process.env.KIIMUIR_SPREADSHEET_ID;
-const SHEET_NAME = '시트1'; // 실제 탭 이름과 다르면 여기 수정
 const VIEWER_THRESHOLD = 30;
+const MAX_MORE_CLICKS = 30;     // 더보기 클릭 최대 횟수 (안전장치)
+const BUTTON_RETRY = 6;         // 버튼이 안 보일 때 재시도 횟수 (클릭 후 리렌더링 대기용)
 // ================
 
 function productUrl(code) {
@@ -21,10 +24,12 @@ function productUrl(code) {
 }
 
 // 1. 리스팅 페이지에서 상품 목록(코드+이름) 수집
-// 이 콘텐츠 페이지는 무한 스크롤이 아니라 "더보기" 버튼을 눌러야 다음 상품이 로드되는 방식.
-// 또한 하단에 "추천 상품" 등 관련없는 섹션도 있어서, 실제 35개 상품이 들어있는
-// #modules-wrapper 컨테이너 안에서만 찾습니다.
-const PRODUCT_SELECTOR = '#modules-wrapper a[href*="/products/"]';
+// 상품 카드들은 ExpansibleGoodsTabRow__CustomGoodsRow-sc-xxxx 라는 div 안에 있음.
+// 뒤의 해시(sc-oz6xp3-0 등)는 배포마다 바뀔 수 있어서 앞부분만 부분일치로 찾음.
+// 하단 "인기 키뮤어 발매" 같은 다른 섹션은 이 div 밖에 있어서 자연스럽게 제외됨.
+const GOODS_ROW_SELECTOR = 'div[class*="ExpansibleGoodsTabRow__CustomGoodsRow"]';
+const PRODUCT_SELECTOR = `${GOODS_ROW_SELECTOR} a[href*="/products/"]`;
+// 더보기 버튼: <button data-button-id="more" data-button-name="더보기">더보기 (9/35)</button>
 const MORE_BUTTON_SELECTOR = 'button[data-button-id="more"]';
 
 async function collectVisibleProducts(page, products) {
@@ -45,6 +50,38 @@ async function collectVisibleProducts(page, products) {
   });
 }
 
+// 현재 DOM에 붙어있는 상품 링크 수 (dedup 전)
+async function countProductLinks(page) {
+  return page.$$eval(PRODUCT_SELECTOR, (links) => links.length).catch(() => 0);
+}
+
+// 더보기 버튼을 찾고 "더보기 (9/35)" 텍스트에서 현재/전체 개수를 파싱
+async function findMoreButton(page) {
+  const btn = await page.$(MORE_BUTTON_SELECTOR);
+  if (!btn) return null;
+  const visible = await btn.isVisible().catch(() => false);
+  if (!visible) return null;
+  const text = ((await btn.innerText().catch(() => '')) || '').trim();
+  const m = text.match(/(\d+)\s*\/\s*(\d+)/);
+  return {
+    handle: btn,
+    text,
+    loaded: m ? parseInt(m[1], 10) : null,
+    total: m ? parseInt(m[2], 10) : null,
+  };
+}
+
+// 버튼이 클릭 직후 리렌더링되며 잠깐 사라지는 경우가 있어서, 몇 번 스크롤+대기하며 다시 찾음
+async function waitForMoreButton(page) {
+  for (let attempt = 1; attempt <= BUTTON_RETRY; attempt++) {
+    const info = await findMoreButton(page);
+    if (info) return info;
+    await page.mouse.wheel(0, 2500).catch(() => {});
+    await page.waitForTimeout(800);
+  }
+  return null;
+}
+
 async function getProductList(page) {
   console.log('[1/3] 상품 목록 수집 중...');
   await page.goto(LISTING_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -52,36 +89,68 @@ async function getProductList(page) {
   try {
     await page.waitForSelector(PRODUCT_SELECTOR, { timeout: 20000 });
   } catch (e) {
-    console.log('   [경고] 20초 내에 상품 링크를 못 찾았어요.');
+    console.log('   [경고] 20초 내에 상품 링크를 못 찾았어요. (셀렉터가 바뀌었을 수 있음)');
   }
 
   const products = new Map();
   await collectVisibleProducts(page, products);
   console.log(`   -> 처음 로드된 ${products.size}개 수집`);
 
-  // "더보기" 버튼이 더 이상 없을 때까지 클릭 반복
-  let round = 0;
-  while (round < 30) {
-    round++;
-    const moreBtn = await page.$(MORE_BUTTON_SELECTOR);
-    if (!moreBtn) {
+  let total = null;      // 더보기 버튼에서 읽은 전체 상품 수 (예: 35)
+  let staleRounds = 0;   // 클릭했는데 상품 수가 안 늘어난 횟수
+
+  for (let round = 1; round <= MAX_MORE_CLICKS; round++) {
+    const info = await waitForMoreButton(page);
+    if (!info) {
       console.log('   -> 더보기 버튼 없음, 모두 로드된 것으로 판단');
       break;
     }
-    const visible = await moreBtn.isVisible().catch(() => false);
-    if (!visible) break;
+    if (info.total) total = info.total;
+    if (total && products.size >= total) {
+      console.log(`   -> 전체 ${total}개 모두 수집됨, 더보기 중단`);
+      break;
+    }
+
+    const domBefore = await countProductLinks(page);
+    const sizeBefore = products.size;
 
     try {
-      await moreBtn.click();
+      await info.handle.scrollIntoViewIfNeeded();
+      await info.handle.click();
     } catch (e) {
       console.log(`   [경고] 더보기 버튼 클릭 실패: ${e.message}`);
       break;
     }
-    await page.waitForTimeout(1200);
+
+    // 상품 링크가 실제로 늘어날 때까지 최대 8초 대기 (고정 1.2초 대기 대신)
+    try {
+      await page.waitForFunction(
+        ({ sel, before }) => document.querySelectorAll(sel).length > before,
+        { sel: PRODUCT_SELECTOR, before: domBefore },
+        { timeout: 8000 }
+      );
+    } catch (e) {
+      console.log(`   [안내] 더보기 ${round}번째 클릭 후 8초 내 상품 증가 없음`);
+    }
+    await page.waitForTimeout(500);
     await collectVisibleProducts(page, products);
-    console.log(`   -> 더보기 ${round}번째 클릭 -> 현재까지 ${products.size}개`);
+
+    console.log(`   -> 더보기 ${round}번째 클릭 [${info.text}] -> 현재까지 ${products.size}개${total ? ` / 전체 ${total}개` : ''}`);
+
+    if (products.size === sizeBefore) {
+      staleRounds++;
+      if (staleRounds >= 3) {
+        console.log('   [경고] 3번 연속 상품이 늘지 않아 중단');
+        break;
+      }
+    } else {
+      staleRounds = 0;
+    }
   }
 
+  if (total && products.size < total) {
+    console.log(`   [경고] 전체 ${total}개 중 ${products.size}개만 수집됨. 페이지 구조 변경 여부 확인 필요`);
+  }
   console.log(`   -> 최종 ${products.size}개 상품 수집 완료`);
   return Array.from(products.entries()).map(([code, name]) => ({ code, name }));
 }
@@ -102,6 +171,20 @@ async function checkViewer(page, code) {
 }
 
 // 3. 구글시트에 결과 쓰기 (서비스계정 키를 환경변수에서 직접 읽음)
+// 탭 이름은 KIIMUIR_SHEET_NAME 환경변수가 있으면 그걸 쓰고, 없으면 첫 번째 탭 이름을 API로 읽어옴.
+// (기존 에러 "Unable to parse range: 시트1!A:E" = 실제 탭 이름이 '시트1'이 아니어서 발생)
+async function resolveSheetName(sheets) {
+  if (process.env.KIIMUIR_SHEET_NAME) return process.env.KIIMUIR_SHEET_NAME;
+  const meta = await sheets.spreadsheets.get({
+    spreadsheetId: SPREADSHEET_ID,
+    fields: 'sheets.properties.title',
+  });
+  const titles = (meta.data.sheets || []).map((s) => s.properties.title);
+  console.log(`   -> 스프레드시트 탭 목록: ${JSON.stringify(titles)}`);
+  if (titles.length === 0) throw new Error('스프레드시트에 탭이 없습니다.');
+  return titles[0];
+}
+
 async function writeToSheet(rows) {
   console.log('[3/3] 구글시트에 기록 중...');
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
@@ -112,9 +195,12 @@ async function writeToSheet(rows) {
   });
   const sheets = google.sheets({ version: 'v4', auth });
 
+  const sheetName = await resolveSheetName(sheets);
+  console.log(`   -> 기록할 탭: '${sheetName}'`);
+
   await sheets.spreadsheets.values.append({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!A:E`,
+    range: `'${sheetName}'!A:E`, // 탭 이름에 공백/특수문자가 있어도 안전하게 따옴표로 감쌈
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: rows },
   });
@@ -171,7 +257,7 @@ async function main() {
   const productList = await getProductList(page);
 
   console.log('[2/3] 각 상품 보는인원 확인 중...');
-  const hot = []; // 임계치(30명) 이상인 상품 (링크 포함, 시트 기록 & 슬랙 알림에서 사용)
+  const hot = []; // 임계치 이상인 상품 (링크 포함, 시트 기록 & 슬랙 알림에서 사용)
 
   for (let i = 0; i < productList.length; i++) {
     const { code, name } = productList[i];
@@ -186,12 +272,12 @@ async function main() {
 
   await browser.close();
 
-  // 임계치(30명) 이상인 상품만 시트에 기록 (전체 61개 다 기록하면 데이터가 너무 빨리 쌓여서 이렇게 걸러요)
+  // 임계치 이상인 상품만 시트에 기록 (전부 기록하면 데이터가 너무 빨리 쌓임)
   const sheetRows = hot.map((h) => [h.code, h.name, h.date, h.time, h.viewers]);
   if (sheetRows.length > 0) {
     await writeToSheet(sheetRows);
   } else {
-    console.log('[3/3] 30명 이상인 상품이 없어서 시트 기록은 건너뜁니다.');
+    console.log(`[3/3] ${VIEWER_THRESHOLD}명 이상인 상품이 없어서 시트 기록은 건너뜁니다.`);
   }
 
   if (hot.length > 0) {
