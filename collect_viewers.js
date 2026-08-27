@@ -123,7 +123,7 @@ async function dumpDiagnostics(page, products, total) {
 
 async function getProductList(page) {
   console.log('[1/3] 상품 목록 수집 중...');
-  await page.goto(LISTING_URL, { waitUntil: 'networkidle2', timeout: 30000 });
+  await page.goto(LISTING_URL, { waitUntil: 'networkidle', timeout: 30000 });
 
   try {
     await page.waitForSelector(PRODUCT_SELECTOR, { timeout: 15000 });
