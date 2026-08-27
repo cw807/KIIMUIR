@@ -20,10 +20,30 @@ function productUrl(code) {
   return `https://www.musinsa.com/products/${code}`;
 }
 
-// 1. 리스팅 페이지에서 상품 목록(코드+이름) 수집 (가상 스크롤 대응)
-// 주의: 이 콘텐츠 페이지에는 하단에 "추천 상품" 등 관련없는 섹션도 있어서,
-// 실제 35개 상품이 들어있는 #modules-wrapper 컨테이너 안에서만 찾습니다.
+// 1. 리스팅 페이지에서 상품 목록(코드+이름) 수집
+// 이 콘텐츠 페이지는 무한 스크롤이 아니라 "더보기" 버튼을 눌러야 다음 상품이 로드되는 방식.
+// 또한 하단에 "추천 상품" 등 관련없는 섹션도 있어서, 실제 35개 상품이 들어있는
+// #modules-wrapper 컨테이너 안에서만 찾습니다.
 const PRODUCT_SELECTOR = '#modules-wrapper a[href*="/products/"]';
+const MORE_BUTTON_SELECTOR = 'button[data-button-id="more"]';
+
+async function collectVisibleProducts(page, products) {
+  const items = await page.$$eval(PRODUCT_SELECTOR, (links) => {
+    return links.map((a) => {
+      const href = a.getAttribute('href') || '';
+      const match = href.match(/\/products\/(\d+)/);
+      if (!match) return null;
+      const img = a.querySelector('img');
+      const name = img ? img.getAttribute('alt') : null;
+      return { code: match[1], name: name || '' };
+    }).filter(Boolean);
+  });
+  items.forEach((item) => {
+    if (item.code && !products.has(item.code)) {
+      products.set(item.code, item.name);
+    }
+  });
+}
 
 async function getProductList(page) {
   console.log('[1/3] 상품 목록 수집 중...');
@@ -36,38 +56,30 @@ async function getProductList(page) {
   }
 
   const products = new Map();
-  let prevCount = 0;
-  let stableRounds = 0;
+  await collectVisibleProducts(page, products);
+  console.log(`   -> 처음 로드된 ${products.size}개 수집`);
+
+  // "더보기" 버튼이 더 이상 없을 때까지 클릭 반복
   let round = 0;
-
-  while (stableRounds < 4 && round < 40) {
+  while (round < 30) {
     round++;
-    const items = await page.$$eval(PRODUCT_SELECTOR, (links) => {
-      return links.map((a) => {
-        const href = a.getAttribute('href') || '';
-        const match = href.match(/\/products\/(\d+)/);
-        if (!match) return null;
-        const img = a.querySelector('img');
-        const name = img ? img.getAttribute('alt') : null;
-        return { code: match[1], name: name || '' };
-      }).filter(Boolean);
-    });
-
-    items.forEach((item) => {
-      if (item.code && !products.has(item.code)) {
-        products.set(item.code, item.name);
-      }
-    });
-
-    if (products.size === prevCount) {
-      stableRounds++;
-    } else {
-      stableRounds = 0;
-      prevCount = products.size;
+    const moreBtn = await page.$(MORE_BUTTON_SELECTOR);
+    if (!moreBtn) {
+      console.log('   -> 더보기 버튼 없음, 모두 로드된 것으로 판단');
+      break;
     }
+    const visible = await moreBtn.isVisible().catch(() => false);
+    if (!visible) break;
 
-    await page.evaluate(() => window.scrollBy(0, window.innerHeight * 1.5));
+    try {
+      await moreBtn.click();
+    } catch (e) {
+      console.log(`   [경고] 더보기 버튼 클릭 실패: ${e.message}`);
+      break;
+    }
     await page.waitForTimeout(1200);
+    await collectVisibleProducts(page, products);
+    console.log(`   -> 더보기 ${round}번째 클릭 -> 현재까지 ${products.size}개`);
   }
 
   console.log(`   -> 최종 ${products.size}개 상품 수집 완료`);
