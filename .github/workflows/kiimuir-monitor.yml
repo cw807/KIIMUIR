@@ -40,7 +40,7 @@ jobs:
           KIIMUIR_SHEET_GID: ${{ secrets.KIIMUIR_SHEET_GID }}
         run: |
           echo "⏰ 모니터링 시작: $(date '+%Y-%m-%d %H:%M:%S')"
-          node collect_viewers_optimized.js
+          node collect_viewers.js
           echo "✅ 모니터링 완료: $(date '+%Y-%m-%d %H:%M:%S')"
         working-directory: ./kiimuir-monitor
         continue-on-error: true
