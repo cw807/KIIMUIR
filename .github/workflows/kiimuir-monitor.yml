@@ -1,0 +1,40 @@
+name: Kiimuir 브랜드 상품 모니터링
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: 의존성 설치
+        run: npm install playwright googleapis
+        working-directory: ./kiimuir-monitor
+
+      - name: Playwright 브라우저 설치
+        run: npx playwright install chromium
+        working-directory: ./kiimuir-monitor
+
+      - name: 상품 모니터링 실행
+        env:
+          KIIMUIR_SPREADSHEET_ID: ${{ secrets.KIIMUIR_SPREADSHEET_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          KIIMUIR_SHEET_GID: ${{ secrets.KIIMUIR_SHEET_GID }}
+        run: node collect_viewers.js
+        working-directory: ./kiimuir-monitor
+
+      - name: 완료
+        if: always()
+        run: echo "모니터링 작업 완료"
