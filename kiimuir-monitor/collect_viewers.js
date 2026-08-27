@@ -82,6 +82,57 @@ async function waitForMoreButton(page) {
   return null;
 }
 
+// 펼쳐진 뒤 화면에 들어와야 렌더링되는(lazy) 카드들을 위해,
+// 마지막으로 렌더된 카드를 화면에 넣고 조금씩 내려가며 반복 수집
+async function revealLazyProducts(page, products, total) {
+  let stale = 0;
+  for (let step = 1; step <= 60; step++) {
+    const before = products.size;
+    await page.evaluate((sel) => {
+      const links = document.querySelectorAll(sel);
+      const last = links[links.length - 1];
+      if (last) last.scrollIntoView({ block: 'end' });
+      window.scrollBy(0, 400);
+    }, PRODUCT_SELECTOR);
+    await page.waitForTimeout(700);
+    await collectVisibleProducts(page, products);
+
+    if (products.size !== before) {
+      stale = 0;
+      console.log(`   -> 스크롤 ${step}회 -> 현재까지 ${products.size}개${total ? ` / 전체 ${total}개` : ''}`);
+    } else {
+      stale++;
+    }
+    if (total && products.size >= total) break;
+    if (stale >= 4) break; // 4번 연속 안 늘어나면 더 이상 렌더될 게 없다고 판단
+  }
+}
+
+// 수집이 부족할 때 원인 파악용 정보 출력 + 스크린샷 저장
+async function dumpDiagnostics(page, products, total) {
+  const info = await page.evaluate((rowSel) => {
+    const allLinks = document.querySelectorAll('a[href*="/products/"]').length;
+    const inRow = document.querySelectorAll(`${rowSel} a[href*="/products/"]`).length;
+    const rows = document.querySelectorAll(rowSel).length;
+    const moreButtons = Array.from(document.querySelectorAll('button'))
+      .filter((b) => /더보기/.test(b.innerText || ''))
+      .map((b) => ({
+        text: (b.innerText || '').trim(),
+        id: b.getAttribute('data-button-id'),
+        cls: (b.className || '').slice(0, 60),
+      }));
+    return { allLinks, inRow, rows, moreButtons, scrollHeight: document.body.scrollHeight };
+  }, GOODS_ROW_SELECTOR);
+  console.log(`   [진단] 페이지 전체 상품링크 ${info.allLinks}개 / 컨테이너 안 ${info.inRow}개 / 컨테이너 ${info.rows}개 / 페이지 높이 ${info.scrollHeight}`);
+  console.log(`   [진단] '더보기' 포함 버튼: ${JSON.stringify(info.moreButtons)}`);
+  try {
+    await page.screenshot({ path: 'debug_listing.png', fullPage: true });
+    console.log('   [진단] 스크린샷 저장: debug_listing.png (워크플로우에 upload-artifact 단계를 넣으면 다운로드 가능)');
+  } catch (e) {
+    console.log(`   [진단] 스크린샷 실패: ${e.message}`);
+  }
+}
+
 async function getProductList(page) {
   console.log('[1/3] 상품 목록 수집 중...');
   await page.goto(LISTING_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -102,7 +153,7 @@ async function getProductList(page) {
   for (let round = 1; round <= MAX_MORE_CLICKS; round++) {
     const info = await waitForMoreButton(page);
     if (!info) {
-      console.log('   -> 더보기 버튼 없음, 모두 로드된 것으로 판단');
+      console.log('   -> 더보기 버튼 없음, 펼치기는 끝난 것으로 판단');
       break;
     }
     if (info.total) total = info.total;
@@ -122,7 +173,7 @@ async function getProductList(page) {
       break;
     }
 
-    // 상품 링크가 실제로 늘어날 때까지 최대 8초 대기 (고정 1.2초 대기 대신)
+    // 상품 링크가 실제로 늘어날 때까지 최대 8초 대기
     try {
       await page.waitForFunction(
         ({ sel, before }) => document.querySelectorAll(sel).length > before,
@@ -134,8 +185,10 @@ async function getProductList(page) {
     }
     await page.waitForTimeout(500);
     await collectVisibleProducts(page, products);
-
     console.log(`   -> 더보기 ${round}번째 클릭 [${info.text}] -> 현재까지 ${products.size}개${total ? ` / 전체 ${total}개` : ''}`);
+
+    // 펼쳐진 카드 중 아직 렌더 안 된 것들을 스크롤로 마저 불러옴
+    await revealLazyProducts(page, products, total);
 
     if (products.size === sizeBefore) {
       staleRounds++;
@@ -148,8 +201,14 @@ async function getProductList(page) {
     }
   }
 
+  // 버튼이 없어진 뒤에도 lazy 렌더링이 남아 있을 수 있어서 한 번 더 스크롤 수집
+  if (!total || products.size < total) {
+    await revealLazyProducts(page, products, total);
+  }
+
   if (total && products.size < total) {
-    console.log(`   [경고] 전체 ${total}개 중 ${products.size}개만 수집됨. 페이지 구조 변경 여부 확인 필요`);
+    console.log(`   [경고] 전체 ${total}개 중 ${products.size}개만 수집됨. 아래 진단 정보를 확인하세요.`);
+    await dumpDiagnostics(page, products, total);
   }
   console.log(`   -> 최종 ${products.size}개 상품 수집 완료`);
   return Array.from(products.entries()).map(([code, name]) => ({ code, name }));
