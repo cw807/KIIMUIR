@@ -14,7 +14,7 @@ const { google } = require('googleapis');
 // ===== 설정 =====
 const LISTING_URL = 'https://www.musinsa.com/content/1535169529421128174?gf=A&brandIds=kiimuir&gender=A&contentIndex=0';
 const SPREADSHEET_ID = process.env.KIIMUIR_SPREADSHEET_ID;
-const VIEWER_THRESHOLD = 30;
+const VIEWER_THRESHOLD = 50;
 const MAX_MORE_CLICKS = 30;     // 더보기 클릭 최대 횟수 (안전장치)
 const BUTTON_RETRY = 6;         // 버튼이 안 보일 때 재시도 횟수 (클릭 후 리렌더링 대기용)
 // ================
