@@ -20,11 +20,11 @@ jobs:
 
       - name: 의존성 설치
         run: npm install playwright googleapis
-        working-directory: ./kiimuir-monitor
+        
 
       - name: Playwright 브라우저 설치
         run: npx playwright install chromium
-        working-directory: ./kiimuir-monitor
+        
 
       - name: 상품 모니터링 실행
         env:
@@ -33,7 +33,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           KIIMUIR_SHEET_GID: ${{ secrets.KIIMUIR_SHEET_GID }}
         run: node collect_viewers.js
-        working-directory: ./kiimuir-monitor
+        
 
       - name: 완료
         if: always()
