@@ -21,12 +21,16 @@ function productUrl(code) {
 }
 
 // 1. 리스팅 페이지에서 상품 목록(코드+이름) 수집 (가상 스크롤 대응)
+// 주의: 이 콘텐츠 페이지에는 하단에 "추천 상품" 등 관련없는 섹션도 있어서,
+// 실제 35개 상품이 들어있는 #modules-wrapper 컨테이너 안에서만 찾습니다.
+const PRODUCT_SELECTOR = '#modules-wrapper a[href*="/products/"]';
+
 async function getProductList(page) {
   console.log('[1/3] 상품 목록 수집 중...');
   await page.goto(LISTING_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
   try {
-    await page.waitForSelector('a[href*="/products/"]', { timeout: 20000 });
+    await page.waitForSelector(PRODUCT_SELECTOR, { timeout: 20000 });
   } catch (e) {
     console.log('   [경고] 20초 내에 상품 링크를 못 찾았어요.');
   }
@@ -38,7 +42,7 @@ async function getProductList(page) {
 
   while (stableRounds < 4 && round < 40) {
     round++;
-    const items = await page.$$eval('a[href*="/products/"]', (links) => {
+    const items = await page.$$eval(PRODUCT_SELECTOR, (links) => {
       return links.map((a) => {
         const href = a.getAttribute('href') || '';
         const match = href.match(/\/products\/(\d+)/);
