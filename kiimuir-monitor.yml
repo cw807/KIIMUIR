@@ -1,0 +1,34 @@
+name: 키뮤어 실시간 관심고객수 모니터링
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  check-viewers:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kiimuir-monitor
+    steps:
+      - name: 저장소 코드 가져오기
+        uses: actions/checkout@v4
+
+      - name: Node.js 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 패키지 설치
+        run: npm install
+
+      - name: Playwright 브라우저 설치
+        run: npx playwright install --with-deps chromium
+
+      - name: 상품 조회수 체크 & 시트 기록
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          KIIMUIR_SPREADSHEET_ID: ${{ secrets.KIIMUIR_SPREADSHEET_ID }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: node collect_viewers.js
