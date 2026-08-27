@@ -170,4 +170,228 @@ async function getProductList(page) {
       }
 
       try {
-        const domBefore =
+        const domBefore = await countProductLinks(page);
+        await page.waitForFunction(
+          ({ sel, before }) => document.querySelectorAll(sel).length > before,
+          { sel: PRODUCT_SELECTOR, before: domBefore },
+          { timeout: 8000 }
+        );
+      } catch (e) {}
+
+      await page.waitForTimeout(300);
+      await collectVisibleProducts(page, products);
+      console.log(`   -> 더보기 ${round}회 -> ${products.size}개`);
+
+      await revealLazyProducts(page, products, total);
+
+      if (products.size === sizeBefore) {
+        staleRounds++;
+        if (staleRounds >= 3) {
+          console.log('   [안내] 3회 연속 증가 없음, 중단');
+          break;
+        }
+      } else {
+        staleRounds = 0;
+      }
+    }
+  } else {
+    console.log('   -> "더보기" 버튼 없음, 무한 스크롤 모드');
+  }
+
+  if (!total || products.size < total) {
+    await revealLazyProducts(page, products, total);
+  }
+
+  if (total && products.size < total) {
+    console.log(`   [경고] 전체 ${total}개 중 ${products.size}개만 수집`);
+    await dumpDiagnostics(page, products, total);
+  }
+
+  console.log(`   -> 최종 ${products.size}개 상품 수집 완료`);
+  return Array.from(products.entries()).map(([code, name]) => ({ code, name }));
+}
+
+async function checkViewer(context, code) {
+  let page = null;
+  try {
+    page = await context.newPage();
+    page.setDefaultTimeout(PAGE_LOAD_TIMEOUT);
+
+    await page.goto(productUrl(code), { waitUntil: 'domcontentloaded', timeout: PAGE_LOAD_TIMEOUT });
+    await page.waitForTimeout(500);
+
+    const bodyText = await page.evaluate(() => document.body.innerText);
+    const match = bodyText.match(/(\d+)\s*명이\s*보고\s*있어요/);
+
+    return match ? parseInt(match[1], 10) : 0;
+  } catch (e) {
+    console.log(`   [경고] ${code} 확인 실패`);
+    return null;
+  } finally {
+    if (page) await page.close();
+  }
+}
+
+async function resolveSheetName(sheets) {
+  const gid = SHEET_GID;
+  const name = process.env.KIIMUIR_SHEET_NAME;
+  const meta = await sheets.spreadsheets.get({
+    spreadsheetId: SPREADSHEET_ID,
+    fields: 'sheets.properties(sheetId,title)',
+  });
+  const tabs = (meta.data.sheets || []).map((s) => s.properties);
+  console.log(`   -> 탭 목록: ${tabs.map((t) => `${t.title}(${t.sheetId})`).join(', ')}`);
+
+  if (gid) {
+    const tab = tabs.find((t) => String(t.sheetId) === String(gid));
+    if (!tab) throw new Error(`gid=${gid}인 탭 없음`);
+    return tab.title;
+  }
+  if (name) {
+    if (!tabs.some((t) => t.title === name)) throw new Error(`탭 '${name}' 없음`);
+    return name;
+  }
+  throw new Error('KIIMUIR_SHEET_GID 또는 KIIMUIR_SHEET_NAME 필요');
+}
+
+async function writeToSheet(rows) {
+  console.log('[3/3] 구글시트 기록 중...');
+  const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+  const sheets = google.sheets({ version: 'v4', auth });
+  const sheetName = await resolveSheetName(sheets);
+  console.log(`   -> 탭: '${sheetName}'`);
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `'${sheetName}'!A:E`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: rows },
+  });
+  console.log(`   -> ${rows.length}개 행 기록 완료`);
+}
+
+function nowKST() {
+  const now = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const date = now.toISOString().slice(0, 10);
+  const time = now.toISOString().slice(11, 16);
+  return { date, time };
+}
+
+async function sendSlackAlert(hot) {
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+  if (!webhookUrl) {
+    console.log('   [안내] SLACK_WEBHOOK_URL 없음');
+    return;
+  }
+  if (hot.length === 0) return;
+
+  console.log('[슬랙] 알림 발송 중...');
+  const lines = hot
+    .map((h) => `• *<${h.url}|${h.name}>* (${h.code}) — *${h.viewers}명*`)
+    .join('\n');
+  const message = {
+    text: `🔥 관심고객 ${VIEWER_THRESHOLD}명 이상 상품 ${hot.length}개! (${hot[0].date} ${hot[0].time})\n${lines}`,
+  };
+
+  const res = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(message),
+  });
+
+  if (res.ok) {
+    console.log('   -> 슬랙 발송 완료');
+  } else {
+    console.log(`   [경고] 슬랙 발송 실패 (status: ${res.status})`);
+  }
+}
+
+async function checkViewersInParallel(context, productList) {
+  console.log('[2/3] 각 상품 보는인원 확인 중... (병렬 처리)');
+
+  const hot = [];
+  const totalBatches = Math.ceil(productList.length / PARALLEL_BATCH_SIZE);
+
+  for (let batchIdx = 0; batchIdx < totalBatches; batchIdx++) {
+    const start = batchIdx * PARALLEL_BATCH_SIZE;
+    const end = Math.min(start + PARALLEL_BATCH_SIZE, productList.length);
+    const batch = productList.slice(start, end);
+
+    const batchResults = await Promise.allSettled(
+      batch.map(async (product) => {
+        const viewers = await checkViewer(context, product.code);
+        return { product, viewers };
+      })
+    );
+
+    for (const result of batchResults) {
+      if (result.status === 'fulfilled') {
+        const { product, viewers } = result.value;
+        const { date, time } = nowKST();
+        const idx = start + batchResults.indexOf(result) + 1;
+        const total = productList.length;
+
+        console.log(`   (${idx}/${total}) ${product.code} ${product.name} -> ${viewers}명`);
+
+        if (typeof viewers === 'number' && viewers >= VIEWER_THRESHOLD) {
+          hot.push({
+            code: product.code,
+            name: product.name,
+            viewers,
+            date,
+            time,
+            url: productUrl(product.code),
+          });
+        }
+      } else {
+        console.log(`   [에러] 배치 처리 실패: ${result.reason}`);
+      }
+    }
+  }
+
+  return hot;
+}
+
+async function main() {
+  if (!SPREADSHEET_ID) throw new Error('KIIMUIR_SPREADSHEET_ID 필요');
+  if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON 필요');
+
+  const browser = await chromium.launch({ headless: true });
+
+  try {
+    const listingPage = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    const productList = await getProductList(listingPage);
+    await listingPage.close();
+
+    const context = await browser.newContext();
+    const hot = await checkViewersInParallel(context, productList);
+    await context.close();
+
+    const sheetRows = hot.map((h) => [h.code, h.name, h.date, h.time, h.viewers]);
+    if (sheetRows.length > 0) {
+      await writeToSheet(sheetRows);
+    } else {
+      console.log(`[3/3] ${VIEWER_THRESHOLD}명 이상 상품 없음, 시트 기록 생략`);
+    }
+
+    if (hot.length > 0) {
+      console.log(`\n🔥 ${VIEWER_THRESHOLD}명 이상 보는 상품 ${hot.length}개:`);
+      hot.forEach((h) => console.log(`   - ${h.name} (${h.code}): ${h.viewers}명`));
+    } else {
+      console.log(`\n${VIEWER_THRESHOLD}명 이상 보는 상품 없음`);
+    }
+
+    await sendSlackAlert(hot);
+  } finally {
+    await browser.close();
+  }
+}
+
+main().catch((err) => {
+  console.error('에러 발생:', err);
+  process.exit(1);
+});
