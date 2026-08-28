@@ -1,0 +1,14 @@
+# 예약(schedule) 트리거가 이 저장소에서 동작하는지 확인하기 위한 진단용 워크플로.
+# 5분마다 도는지만 보면 되므로 아무 작업도 하지 않는다. 진단이 끝나면 삭제한다.
+name: schedule-test
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "triggered by ${{ github.event_name }} at $(date -u)"
