@@ -11,3 +11,6 @@ data/
 __pycache__/
 *.pyc
 .venv/
+
+# Playwright 브라우저 (용량 큼)
+browsers/

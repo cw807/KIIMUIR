@@ -2,4 +2,5 @@
 chcp 65001 >nul
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
+set PLAYWRIGHT_BROWSERS_PATH=%~dp0browsers
 "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" "%~dp0monitor.py" >> "%~dp0data\run.log" 2>&1
