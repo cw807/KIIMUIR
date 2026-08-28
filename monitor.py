@@ -150,13 +150,17 @@ async def collect(brand, cap, concurrency, timeout_s):
 
 
 def save_csv(rows, ts):
+    min_v = int(os.environ.get("CSV_MIN_VIEWERS") or 0)
     path = BASE / "data" / f"{ts:%Y-%m-%d}.csv"
     new = not path.exists()
+    (BASE / "data").mkdir(exist_ok=True)
     with path.open("a", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         if new:
             w.writerow(["수집시각", "상품번호", "상품명", "시청자수", "상품링크"])
         for r in rows:
+            if r["viewers"] is not None and r["viewers"] < min_v:
+                continue
             w.writerow([f"{ts:%Y-%m-%d %H:%M}", r["goodsNo"], r["name"],
                         "" if r["viewers"] is None else r["viewers"],
                         PRODUCT_URL.format(no=r["goodsNo"])])
@@ -183,10 +187,17 @@ def send_slack(webhook, text):
         return r.status
 
 
+def _cfg_int(env_key, cfg_key, default):
+    v = os.environ.get(env_key)
+    if v:
+        return int(v)
+    return int(CFG.get(cfg_key, default))
+
+
 def main():
     ts = datetime.now()
     brand = CFG["brand"]
-    threshold = int(CFG.get("threshold", 30))
+    threshold = _cfg_int("THRESHOLD", "threshold", 30)
     dry = "--dry-run" in sys.argv
     limit = 0
     for a in sys.argv[1:]:
@@ -196,8 +207,9 @@ def main():
     cap = limit or int(CFG.get("max_products") or 0)
 
     t0 = time.time()
-    rows = asyncio.run(collect(brand, cap, int(CFG["concurrency"]),
-                               int(CFG["page_timeout_sec"])))
+    rows = asyncio.run(collect(brand, cap,
+                               _cfg_int("CONCURRENCY", "concurrency", 10),
+                               _cfg_int("PAGE_TIMEOUT_SEC", "page_timeout_sec", 20)))
     log(f"수집 완료 ({time.time() - t0:.0f}초)")
 
     ok = [r for r in rows if r["viewers"] is not None]

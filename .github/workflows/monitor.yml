@@ -1,0 +1,55 @@
+name: kiimuir-viewer-monitor
+
+on:
+  schedule:
+    - cron: '5 * * * *'    # 매시 05분 (시간대 무관, 1시간 간격)
+  workflow_dispatch: {}     # 수동 실행 버튼
+  push:
+    branches: [main]        # 테스트용 — 검증 후 제거 예정
+
+concurrency:
+  group: viewer-monitor
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TZ: Asia/Seoul
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Playwright
+        run: |
+          pip install --quiet playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Run monitor
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          PAGE_TIMEOUT_SEC: '10'
+          CONCURRENCY: '12'
+          CSV_MIN_VIEWERS: '1'   # 0명 행은 저장소에 남기지 않음 (용량 절약)
+        run: |
+          python monitor.py 2>&1 | tee data/last_run.txt
+
+      - name: Commit collected data
+        if: always()
+        run: |
+          git config user.name "kiimuir-monitor-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -f data/*.csv data/last_run.txt 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -m "data: $(date '+%m/%d %H:%M') 수집 [skip ci]"
+            git pull --rebase origin main
+            git push
+          fi
