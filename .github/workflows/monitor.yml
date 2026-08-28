@@ -2,7 +2,10 @@ name: kiimuir-viewer-monitor
 
 on:
   schedule:
-    - cron: '5 * * * *'    # 매시 05분 (시간대 무관, 1시간 간격)
+    # 매시 정각 근처는 GitHub 부하가 몰려 예약 실행이 밀리거나 누락된다.
+    # 한산한 분(17분)으로 옮기고, 누락 대비로 47분에 한 번 더 시도한다.
+    - cron: '17 * * * *'
+    - cron: '47 * * * *'
   workflow_dispatch: {}     # 수동 실행 버튼
 
 concurrency:
@@ -31,7 +34,20 @@ jobs:
           pip install --quiet playwright
           python -m playwright install --with-deps chromium
 
+      - name: Skip if already ran recently
+        id: guard
+        run: |
+          LAST=$(git log -1 --format=%ct --grep='^data: ' || echo 0)
+          NOW=$(date +%s)
+          if [ "$LAST" != "0" ] && [ $((NOW - LAST)) -lt 1800 ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "직전 $(( (NOW-LAST)/60 ))분 전에 이미 수집함 — 이번 실행은 건너뜀"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run monitor
+        if: steps.guard.outputs.skip != 'true'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           PAGE_TIMEOUT_SEC: '10'
@@ -41,7 +57,7 @@ jobs:
           python monitor.py 2>&1 | tee data/last_run.txt
 
       - name: Commit collected data
-        if: always()
+        if: steps.guard.outputs.skip != 'true'
         run: |
           git config user.name "kiimuir-monitor-bot"
           git config user.email "actions@users.noreply.github.com"
