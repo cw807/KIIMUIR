@@ -31,7 +31,7 @@ jobs:
 
       - name: Install Playwright
         run: |
-          pip install --quiet playwright
+          pip install --quiet playwright google-api-python-client google-auth
           python -m playwright install --with-deps chromium
 
       - name: Skip if already ran recently
@@ -50,6 +50,8 @@ jobs:
         if: steps.guard.outputs.skip != 'true'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          KIIMUIR_SPREADSHEET_ID: ${{ secrets.KIIMUIR_SPREADSHEET_ID }}
           PAGE_TIMEOUT_SEC: '10'
           CONCURRENCY: '12'
           CSV_MIN_VIEWERS: '1'   # 0명 행은 저장소에 남기지 않음 (용량 절약)

@@ -179,6 +179,44 @@ def build_slack_message(hot, ts, threshold, brand_label, total, scanned):
     return "\n".join(lines)
 
 
+def write_to_sheet(hot, ts):
+    """30명 이상인 상품을 구글시트에 누적 기록한다.
+    시트 컬럼: 상품코드 | 상품명 | 날짜 | 시간 | 시청자수  (기존 형식 유지)
+    필요한 값이 없으면 조용히 건너뛴다(로컬 실행 시)."""
+    sa = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    sid = os.environ.get("KIIMUIR_SPREADSHEET_ID")
+    if not sa or not sid:
+        return None, "설정 없음(로컬 실행)"
+    if not hot:
+        return 0, "기록할 상품 없음"
+    try:
+        from google.oauth2.service_account import Credentials
+        from googleapiclient.discovery import build
+    except ImportError:
+        return None, "라이브러리 없음 (pip install google-api-python-client google-auth)"
+
+    creds = Credentials.from_service_account_info(
+        json.loads(sa), scopes=["https://www.googleapis.com/auth/spreadsheets"])
+    svc = build("sheets", "v4", credentials=creds, cache_discovery=False)
+
+    meta = svc.spreadsheets().get(
+        spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()
+    tabs = [x["properties"] for x in meta.get("sheets", [])]
+    if not tabs:
+        return None, "시트에 탭이 없음"
+    gid = os.environ.get("KIIMUIR_SHEET_GID", "2056737982")
+    tab = next((t["title"] for t in tabs if str(t["sheetId"]) == str(gid)), None)
+    if tab is None:
+        tab = tabs[0]["title"]
+
+    rows = [[h["goodsNo"], h["name"], f"{ts:%Y-%m-%d}", f"{ts:%H:%M}", h["viewers"]]
+            for h in hot]
+    svc.spreadsheets().values().append(
+        spreadsheetId=sid, range=f"'{tab}'!A:E",
+        valueInputOption="USER_ENTERED", body={"values": rows}).execute()
+    return len(rows), tab
+
+
 def send_slack(webhook, text):
     body = json.dumps({"text": text}).encode("utf-8")
     req = urllib.request.Request(webhook, data=body,
@@ -224,6 +262,15 @@ def main():
     print("\n" + "=" * 60)
     print(text.replace("*", ""))
     print("=" * 60 + "\n")
+
+    try:
+        n, info = write_to_sheet(hot, ts)
+        if n is None:
+            log(f"구글시트 기록 생략: {info}")
+        else:
+            log(f"구글시트 기록 완료: {n}행 (탭 '{info}')")
+    except Exception as e:
+        log(f"구글시트 기록 실패: {type(e).__name__}: {str(e)[:120]}")
 
     hook = slack_webhook()
     if dry:
