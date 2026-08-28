@@ -1,0 +1,8 @@
+{
+  "brand": "kiimuir",
+  "brand_label": "키뮤어",
+  "threshold": 30,
+  "concurrency": 10,
+  "page_timeout_sec": 20,
+  "max_products": 0
+}
