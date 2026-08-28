@@ -4,8 +4,6 @@ on:
   schedule:
     - cron: '5 * * * *'    # 매시 05분 (시간대 무관, 1시간 간격)
   workflow_dispatch: {}     # 수동 실행 버튼
-  push:
-    branches: [main]        # 테스트용 — 검증 후 제거 예정
 
 concurrency:
   group: viewer-monitor
