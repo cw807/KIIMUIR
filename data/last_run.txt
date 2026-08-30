@@ -1,73 +1,68 @@
-[23:49:34] 상품 목록 조회 중...
-[23:49:38] 상품 401개 확인. 시청자 수 수집 시작 (동시 12개)
-[23:50:18]   진행 25/401
-[23:50:48]   진행 50/401
-[23:51:23]   진행 75/401
-[23:51:59]   진행 100/401
-[23:52:34]   진행 125/401
-[23:53:17]   진행 150/401
-[23:53:49]   진행 175/401
-[23:54:24]   진행 200/401
-[23:55:07]   진행 225/401
-[23:55:47]   진행 250/401
-[23:56:23]   진행 275/401
-[23:57:00]   진행 300/401
-[23:57:39]   진행 325/401
-[23:58:19]   진행 350/401
-[23:58:59]   진행 375/401
-[23:59:32]   진행 400/401
-[23:59:33]   진행 401/401
-[23:59:33] 수집 완료 (599초)
-[23:59:33] 저장: /home/runner/work/KIIMUIR/KIIMUIR/data/2026-08-30.csv
+[00:49:30] 상품 목록 조회 중...
+[00:49:33] 상품 401개 확인. 시청자 수 수집 시작 (동시 12개)
+[00:50:21]   진행 25/401
+[00:51:00]   진행 50/401
+[00:51:36]   진행 75/401
+[00:52:13]   진행 100/401
+[00:52:52]   진행 125/401
+[00:53:25]   진행 150/401
+[00:54:08]   진행 175/401
+[00:54:45]   진행 200/401
+[00:55:25]   진행 225/401
+[00:56:03]   진행 250/401
+[00:56:38]   진행 275/401
+[00:57:17]   진행 300/401
+[00:57:55]   진행 325/401
+[00:58:34]   진행 350/401
+[00:59:15]   진행 375/401
+[00:59:49]   진행 400/401
+[00:59:49]   진행 401/401
+[00:59:50] 수집 완료 (620초)
+[00:59:50] 저장: /home/runner/work/KIIMUIR/KIIMUIR/data/2026-08-31.csv
 
 ============================================================
-🔥 키뮤어 실시간 시청자 30명 이상 (08/30 23:49 기준)
+🔥 키뮤어 실시간 시청자 30명 이상 (08/31 00:49 기준)
 
-총 42개 상품 · 합계 3996명
+총 37개 상품 · 합계 3551명
 
-1. <https://www.musinsa.com/products/6154823|[크롭] 스트라이프 레이어드 헨리넥 반팔 티셔츠_차콜> — 308명
-2. <https://www.musinsa.com/products/3138551|린넨라이크 세미와이드 밴딩 팬츠_4 COLOR> — 268명
-3. <https://www.musinsa.com/products/6154808|[크롭] 배색 롤업 크롭 반팔 티셔츠_블랙> — 249명
-4. <https://www.musinsa.com/products/6154816|[크롭] 배색 롤업 크롭 반팔 티셔츠_버건디> — 216명
-5. <https://www.musinsa.com/products/3466549|2-WAY 릴렉스드 헤링턴 자켓_4 color> — 169명
-6. <https://www.musinsa.com/products/6979660|[크롭] 라이트 레이어드 롱슬리브_퍼플> — 159명
-7. <https://www.musinsa.com/products/6979708|[크롭] 스트라이프 레이어드 헨리넥 롱슬리브_버건디> — 149명
-8. <https://www.musinsa.com/products/6979610|[크롭] 라이트 후드 집업_네이비 [레이어드티 선택]> — 149명
-9. <https://www.musinsa.com/products/6980163|리버시블 체크 헤링턴 점퍼_버건디> — 143명
-10. <https://www.musinsa.com/products/6154671|[크롭] 롤업 체크 반팔 셔츠_그린 [나시 선택]> — 137명
-11. <https://www.musinsa.com/products/6980053|[크롭] 스트라이프 헨리넥 니트_차콜> — 130명
-12. <https://www.musinsa.com/products/5318976|스웨이드 바이커 자켓_브라운> — 115명
-13. <https://www.musinsa.com/products/6979608|[크롭] 라이트 후드 집업_퍼플 [레이어드티 선택]> — 105명
-14. <https://www.musinsa.com/products/3968466|코튼 오픈카라 케이블 하프 니트_5 COLOR> — 101명
-15. <https://www.musinsa.com/products/4301697|[유튜버 PICK] 빈티지 워크 자켓_카키> — 93명
-16. <https://www.musinsa.com/products/4062254|COOL 써머 와이드 팬츠 2종> — 89명
-17. <https://www.musinsa.com/products/3143786|(카라 OR 라운드) 린넨라이크 하프 니트 2종> — 80명
-18. <https://www.musinsa.com/products/4499468|RDS 헤링턴 다운 점퍼_카키> — 80명
-19. <https://www.musinsa.com/products/6979612|[크롭] 라이트 후드 집업_차콜 [레이어드티 선택]> — 77명
-20. <https://www.musinsa.com/products/6979659|[크롭] 라이트 레이어드 롱슬리브_네이비> — 75명
-21. <https://www.musinsa.com/products/3324453|레더 배색 스프링 울 카라 블루종_블랙> — 74명
-22. <https://www.musinsa.com/products/6154812|[크롭] 배색 롤업 크롭 반팔 티셔츠_멜란지 그레이> — 73명
-23. <https://www.musinsa.com/products/6979664|[크롭] 라이트 레이어드 롱슬리브_레몬> — 66명
-24. <https://www.musinsa.com/products/5903182|더블 아일렛 웨스턴 벨트_블랙> — 62명
-25. <https://www.musinsa.com/products/6980159|리버시블 체크 헤링턴 점퍼_블랙> — 61명
-26. <https://www.musinsa.com/products/3633712|울(WOOL) 파이핑 바시티 자켓 CS_네이비> — 61명
-27. <https://www.musinsa.com/products/6979712|[크롭] 스트라이프 레이어드 헨리넥 롱슬리브_차콜> — 60명
-28. <https://www.musinsa.com/products/5318935|리버시블 체크 헤링턴 점퍼_네이비> — 60명
-29. <https://www.musinsa.com/products/4392780|울(WOOL) 파이핑 바시티 자켓 DW_네이비> — 57명
-30. <https://www.musinsa.com/products/6979662|[크롭] 라이트 레이어드 롱슬리브_민트> — 52명
-31. <https://www.musinsa.com/products/6154806|[크롭] 배색 롤업 크롭 반팔 티셔츠_화이트> — 50명
-32. <https://www.musinsa.com/products/6979658|[크롭] 라이트 레이어드 롱슬리브_차콜> — 47명
-33. <https://www.musinsa.com/products/6154819|[크롭] 스트라이프 레이어드 헨리넥 반팔 티셔츠_블랙> — 47명
-34. <https://www.musinsa.com/products/6154825|[크롭] 스트라이프 레이어드 헨리넥 반팔 티셔츠_멜란지 그레이> — 45명
-35. <https://www.musinsa.com/products/3143788|(카라 OR 라운드) 케이블 하프 니트 2종> — 41명
-36. <https://www.musinsa.com/products/6154778|[크롭] 플래시무브 링거 크롭 반팔 티셔츠_버건디> — 39명
-37. <https://www.musinsa.com/products/4302199|데님 워크 자켓_스카이블루> — 38명
-38. <https://www.musinsa.com/products/4679224|울(WOOL) 파이핑 바시티 자켓 DS_그레이> — 38명
-39. <https://www.musinsa.com/products/2752809|울(WOOL) 바시티 자켓_네이비> — 36명
-40. <https://www.musinsa.com/products/6979706|[크롭] 스트라이프 레이어드 헨리넥 롱슬리브_스트라이프> — 34명
-41. <https://www.musinsa.com/products/3644569|코튼 워셔블 하찌 2-WAY 후드집업 니트> — 32명
-42. <https://www.musinsa.com/products/6979575|[크롭] 와플 후드 롱슬리브_애쉬블루> — 31명
+1. <https://www.musinsa.com/products/3138551|린넨라이크 세미와이드 밴딩 팬츠_4 COLOR> — 280명
+2. <https://www.musinsa.com/products/3466549|2-WAY 릴렉스드 헤링턴 자켓_4 color> — 263명
+3. <https://www.musinsa.com/products/6154816|[크롭] 배색 롤업 크롭 반팔 티셔츠_버건디> — 243명
+4. <https://www.musinsa.com/products/6979660|[크롭] 라이트 레이어드 롱슬리브_퍼플> — 182명
+5. <https://www.musinsa.com/products/6980163|리버시블 체크 헤링턴 점퍼_버건디> — 172명
+6. <https://www.musinsa.com/products/5318976|스웨이드 바이커 자켓_브라운> — 139명
+7. <https://www.musinsa.com/products/4301697|[유튜버 PICK] 빈티지 워크 자켓_카키> — 139명
+8. <https://www.musinsa.com/products/6979610|[크롭] 라이트 후드 집업_네이비 [레이어드티 선택]> — 138명
+9. <https://www.musinsa.com/products/6154671|[크롭] 롤업 체크 반팔 셔츠_그린 [나시 선택]> — 130명
+10. <https://www.musinsa.com/products/4499468|RDS 헤링턴 다운 점퍼_카키> — 119명
+11. <https://www.musinsa.com/products/6979608|[크롭] 라이트 후드 집업_퍼플 [레이어드티 선택]> — 108명
+12. <https://www.musinsa.com/products/3633712|울(WOOL) 파이핑 바시티 자켓 CS_네이비> — 106명
+13. <https://www.musinsa.com/products/4392780|울(WOOL) 파이핑 바시티 자켓 DW_네이비> — 103명
+14. <https://www.musinsa.com/products/3324453|레더 배색 스프링 울 카라 블루종_블랙> — 93명
+15. <https://www.musinsa.com/products/4062254|COOL 써머 와이드 팬츠 2종> — 90명
+16. <https://www.musinsa.com/products/6979612|[크롭] 라이트 후드 집업_차콜 [레이어드티 선택]> — 89명
+17. <https://www.musinsa.com/products/3143786|(카라 OR 라운드) 린넨라이크 하프 니트 2종> — 89명
+18. <https://www.musinsa.com/products/6979712|[크롭] 스트라이프 레이어드 헨리넥 롱슬리브_차콜> — 84명
+19. <https://www.musinsa.com/products/6979659|[크롭] 라이트 레이어드 롱슬리브_네이비> — 78명
+20. <https://www.musinsa.com/products/6979662|[크롭] 라이트 레이어드 롱슬리브_민트> — 72명
+21. <https://www.musinsa.com/products/6154812|[크롭] 배색 롤업 크롭 반팔 티셔츠_멜란지 그레이> — 71명
+22. <https://www.musinsa.com/products/6979658|[크롭] 라이트 레이어드 롱슬리브_차콜> — 68명
+23. <https://www.musinsa.com/products/5903182|더블 아일렛 웨스턴 벨트_블랙> — 64명
+24. <https://www.musinsa.com/products/6979664|[크롭] 라이트 레이어드 롱슬리브_레몬> — 63명
+25. <https://www.musinsa.com/products/2752809|울(WOOL) 바시티 자켓_네이비> — 57명
+26. <https://www.musinsa.com/products/6979706|[크롭] 스트라이프 레이어드 헨리넥 롱슬리브_스트라이프> — 54명
+27. <https://www.musinsa.com/products/4679224|울(WOOL) 파이핑 바시티 자켓 DS_그레이> — 52명
+28. <https://www.musinsa.com/products/6979575|[크롭] 와플 후드 롱슬리브_애쉬블루> — 46명
+29. <https://www.musinsa.com/products/6154819|[크롭] 스트라이프 레이어드 헨리넥 반팔 티셔츠_블랙> — 46명
+30. <https://www.musinsa.com/products/3487909|울(WOOL) 파이핑 바시티 자켓 CF_그레이> — 46명
+31. <https://www.musinsa.com/products/3644569|코튼 워셔블 하찌 2-WAY 후드집업 니트> — 45명
+32. <https://www.musinsa.com/products/4301692|[유튜버 PICK] 빈티지 워크 자켓_네이비> — 42명
+33. <https://www.musinsa.com/products/3143788|(카라 OR 라운드) 케이블 하프 니트 2종> — 41명
+34. <https://www.musinsa.com/products/4302199|데님 워크 자켓_스카이블루> — 38명
+35. <https://www.musinsa.com/products/6154778|[크롭] 플래시무브 링거 크롭 반팔 티셔츠_버건디> — 37명
+36. <https://www.musinsa.com/products/6154806|[크롭] 배색 롤업 크롭 반팔 티셔츠_화이트> — 33명
+37. <https://www.musinsa.com/products/3794826|빅포켓 투웨이 워싱 데님 자켓_블루> — 31명
 ============================================================
 
-[23:59:36] 구글시트 기록 완료: 42행 (탭 'MU3')
-[23:59:36] 슬랙 전송 완료 (42개 상품)
+[00:59:54] 구글시트 기록 완료: 37행 (탭 'MU3')
+[00:59:54] 슬랙 전송 완료 (37개 상품)
