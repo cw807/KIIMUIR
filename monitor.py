@@ -27,6 +27,7 @@ LIST_API = ("https://api.musinsa.com/api2/dp/v2/plp/goods"
             "?brand={brand}&sortCode=POPULAR&size=100&page={page}"
             "&caller=FLAGSHIP&countryCode=KR&localeCode=ko-KR&gf=A")
 PRODUCT_URL = "https://www.musinsa.com/products/{no}"
+SLACK_MAX_ITEMS = 10   # 슬랙에는 상위 10개만, 나머지는 구글시트에만 기록
 BADGE_RE = re.compile(r"(\d+)\s*명이\s*보고\s*있어요")
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
@@ -173,9 +174,12 @@ def build_slack_message(hot, ts, threshold, brand_label, total, scanned):
         lines.append(f"\n해당 상품 없음 (상품 {scanned}개 확인)")
     else:
         lines.append(f"\n총 *{len(hot)}개* 상품 · 합계 *{sum(h['viewers'] for h in hot)}명*\n")
-        for i, h in enumerate(hot, 1):
+        for i, h in enumerate(hot[:SLACK_MAX_ITEMS], 1):
             name = h["name"] if len(h["name"]) <= 40 else h["name"][:39] + "…"
             lines.append(f"{i}. <{PRODUCT_URL.format(no=h['goodsNo'])}|{name}> — *{h['viewers']}명*")
+        rest = len(hot) - SLACK_MAX_ITEMS
+        if rest > 0:
+            lines.append(f"\n_외 {rest}개 상품은 구글시트에 기록됨_")
     return "\n".join(lines)
 
 
