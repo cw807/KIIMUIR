@@ -2,10 +2,11 @@ name: kiimuir-viewer-monitor
 
 on:
   schedule:
-    # 매시 정각 근처는 GitHub 부하가 몰려 예약 실행이 밀리거나 누락된다.
-    # 한산한 분(17분)으로 옮기고, 누락 대비로 47분에 한 번 더 시도한다.
-    - cron: '17 * * * *'
-    - cron: '47 * * * *'
+    # 2시간마다 수집. 매시 정각 근처는 GitHub 부하가 몰려 예약 실행이
+    # 밀리거나 누락되므로 한산한 분(17분)으로 옮기고,
+    # 누락 대비로 30분 뒤에 한 번 더 시도한다(아래 guard가 중복을 막는다).
+    - cron: '17 */2 * * *'
+    - cron: '47 */2 * * *'
   workflow_dispatch: {}     # 수동 실행 버튼
 
 concurrency:
@@ -39,7 +40,8 @@ jobs:
         run: |
           LAST=$(git log -1 --format=%ct --grep='^data: ' || echo 0)
           NOW=$(date +%s)
-          if [ "$LAST" != "0" ] && [ $((NOW - LAST)) -lt 1800 ]; then
+          # 100분. 백업 크론(30분 뒤)은 막고, 다음 주기(약 109분 뒤)는 통과시킨다.
+          if [ "$LAST" != "0" ] && [ $((NOW - LAST)) -lt 6000 ]; then
             echo "skip=true" >> $GITHUB_OUTPUT
             echo "직전 $(( (NOW-LAST)/60 ))분 전에 이미 수집함 — 이번 실행은 건너뜀"
           else
