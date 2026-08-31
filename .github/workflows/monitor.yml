@@ -3,10 +3,8 @@ name: kiimuir-viewer-monitor
 on:
   schedule:
     # 2시간마다 수집. 매시 정각 근처는 GitHub 부하가 몰려 예약 실행이
-    # 밀리거나 누락되므로 한산한 분(17분)으로 옮기고,
-    # 누락 대비로 30분 뒤에 한 번 더 시도한다(아래 guard가 중복을 막는다).
+    # 밀리거나 누락되므로 한산한 분(17분)에 돌린다.
     - cron: '17 */2 * * *'
-    - cron: '47 */2 * * *'
   workflow_dispatch: {}     # 수동 실행 버튼
 
 concurrency:
@@ -14,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   scan:
@@ -32,42 +30,14 @@ jobs:
 
       - name: Install Playwright
         run: |
-          pip install --quiet playwright google-api-python-client google-auth
+          pip install --quiet playwright
           python -m playwright install --with-deps chromium
 
-      - name: Skip if already ran recently
-        id: guard
-        run: |
-          LAST=$(git log -1 --format=%ct --grep='^data: ' || echo 0)
-          NOW=$(date +%s)
-          # 100분. 백업 크론(30분 뒤)은 막고, 다음 주기(약 109분 뒤)는 통과시킨다.
-          if [ "$LAST" != "0" ] && [ $((NOW - LAST)) -lt 6000 ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-            echo "직전 $(( (NOW-LAST)/60 ))분 전에 이미 수집함 — 이번 실행은 건너뜀"
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Run monitor
-        if: steps.guard.outputs.skip != 'true'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-          KIIMUIR_SPREADSHEET_ID: ${{ secrets.KIIMUIR_SPREADSHEET_ID }}
           PAGE_TIMEOUT_SEC: '10'
           CONCURRENCY: '12'
           CSV_MIN_VIEWERS: '1'   # 0명 행은 저장소에 남기지 않음 (용량 절약)
         run: |
-          python monitor.py 2>&1 | tee data/last_run.txt
-
-      - name: Commit collected data
-        if: steps.guard.outputs.skip != 'true'
-        run: |
-          git config user.name "kiimuir-monitor-bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add -f data/*.csv data/last_run.txt 2>/dev/null || true
-          if ! git diff --cached --quiet; then
-            git commit -m "data: $(date '+%m/%d %H:%M') 수집 [skip ci]"
-            git pull --rebase origin main
-            git push
-          fi
+          python monitor.py
